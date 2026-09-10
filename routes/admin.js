@@ -1,7 +1,15 @@
 import { Router } from "express";
-import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
-import { readDB, writeDB, COLLECTIONS } from "../db.js";
+import {
+  getAdmin,
+  updateAdminPassword,
+  getPublicContent,
+  createItem,
+  updateItem,
+  deleteItem,
+  reorderCollection,
+  COLLECTIONS,
+} from "../db.js";
 import { signToken, requireAuth } from "../auth.js";
 
 const router = Router();
@@ -27,53 +35,61 @@ function pick(obj, fields) {
 }
 
 // ── Login ────────────────────────────────────────────────────────────────
-router.post("/login", (req, res) => {
-  const { username, password } = req.body || {};
-  const db = readDB();
+router.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    const admin = await getAdmin();
 
-  if (!db.admin) {
-    return res.status(400).json({
-      error:
-        "Todavía no hay un administrador configurado. En el servidor, corré: npm run create-admin -- <usuario> <contraseña>",
-    });
+    if (!admin) {
+      return res.status(400).json({
+        error:
+          "Todavía no hay un administrador configurado. En el servidor, corré: npm run create-admin -- <usuario> <contraseña>",
+      });
+    }
+
+    if (
+      typeof username !== "string" ||
+      typeof password !== "string" ||
+      username !== admin.username ||
+      !bcrypt.compareSync(password, admin.passwordHash)
+    ) {
+      return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
+    }
+
+    res.json({ token: signToken(username), username });
+  } catch (err) {
+    console.error("Error en login:", err);
+    res.status(500).json({ error: "Error interno al iniciar sesión." });
   }
-
-  if (
-    typeof username !== "string" ||
-    typeof password !== "string" ||
-    username !== db.admin.username ||
-    !bcrypt.compareSync(password, db.admin.passwordHash)
-  ) {
-    return res.status(401).json({ error: "Usuario o contraseña incorrectos." });
-  }
-
-  res.json({ token: signToken(username), username });
 });
 
 router.get("/me", requireAuth, (req, res) => {
   res.json({ username: req.user.username });
 });
 
-router.post("/change-password", requireAuth, (req, res) => {
+router.post("/change-password", requireAuth, async (req, res) => {
   const { newPassword } = req.body || {};
   if (typeof newPassword !== "string" || newPassword.length < 6) {
     return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres." });
   }
-  const db = readDB();
-  db.admin.passwordHash = bcrypt.hashSync(newPassword, 10);
-  writeDB(db);
-  res.json({ ok: true });
+  try {
+    await updateAdminPassword(bcrypt.hashSync(newPassword, 10));
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error al cambiar la contraseña:", err);
+    res.status(500).json({ error: "Error interno al cambiar la contraseña." });
+  }
 });
 
 // ── Contenido (autenticado) ─────────────────────────────────────────────
-router.get("/content", requireAuth, (_req, res) => {
-  const db = readDB();
-  res.json({
-    docentes: db.docentes,
-    auxiliares: db.auxiliares,
-    links: db.links,
-    timeline: db.timeline,
-  });
+router.get("/content", requireAuth, async (_req, res) => {
+  try {
+    const content = await getPublicContent();
+    res.json(content);
+  } catch (err) {
+    console.error("Error al obtener el contenido:", err);
+    res.status(500).json({ error: "Error al obtener el contenido." });
+  }
 });
 
 function checkCollection(req, res, next) {
@@ -84,7 +100,7 @@ function checkCollection(req, res, next) {
 }
 
 // Crear
-router.post("/:collection", requireAuth, checkCollection, (req, res) => {
+router.post("/:collection", requireAuth, checkCollection, async (req, res) => {
   const collection = req.params.collection;
   const fields = FIELDS[collection];
   const data = pick(req.body || {}, fields);
@@ -95,60 +111,59 @@ router.post("/:collection", requireAuth, checkCollection, (req, res) => {
     }
   }
 
-  const db = readDB();
-  const item = { id: randomUUID(), ...data };
-  db[collection].push(item);
-  writeDB(db);
-  res.status(201).json(item);
+  try {
+    const item = await createItem(collection, data);
+    res.status(201).json(item);
+  } catch (err) {
+    console.error("Error al crear el elemento:", err);
+    res.status(500).json({ error: "Error interno al crear el elemento." });
+  }
 });
 
 // Editar
-router.put("/:collection/:id", requireAuth, checkCollection, (req, res) => {
+router.put("/:collection/:id", requireAuth, checkCollection, async (req, res) => {
   const collection = req.params.collection;
   const fields = FIELDS[collection];
   const data = pick(req.body || {}, fields);
 
-  const db = readDB();
-  const list = db[collection];
-  const idx = list.findIndex((i) => i.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "No encontrado." });
-
-  list[idx] = { ...list[idx], ...data, id: list[idx].id };
-  writeDB(db);
-  res.json(list[idx]);
+  try {
+    const updated = await updateItem(collection, req.params.id, data);
+    if (!updated) return res.status(404).json({ error: "No encontrado." });
+    res.json(updated);
+  } catch (err) {
+    console.error("Error al editar el elemento:", err);
+    res.status(500).json({ error: "Error interno al editar el elemento." });
+  }
 });
 
 // Borrar
-router.delete("/:collection/:id", requireAuth, checkCollection, (req, res) => {
-  const db = readDB();
-  const list = db[req.params.collection];
-  const idx = list.findIndex((i) => i.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "No encontrado." });
-
-  const [removed] = list.splice(idx, 1);
-  writeDB(db);
-  res.json(removed);
+router.delete("/:collection/:id", requireAuth, checkCollection, async (req, res) => {
+  try {
+    const removed = await deleteItem(req.params.collection, req.params.id);
+    if (!removed) return res.status(404).json({ error: "No encontrado." });
+    res.json(removed);
+  } catch (err) {
+    console.error("Error al borrar el elemento:", err);
+    res.status(500).json({ error: "Error interno al borrar el elemento." });
+  }
 });
 
 // Reordenar (arrastrar en la lista): recibe el array completo de ids en el
 // nuevo orden deseado.
-router.put("/:collection/reorder/all", requireAuth, checkCollection, (req, res) => {
+router.put("/:collection/reorder/all", requireAuth, checkCollection, async (req, res) => {
   const { order } = req.body || {};
-  if (!Array.isArray(order)) return res.status(400).json({ error: "Falta el array \"order\"." });
+  if (!Array.isArray(order)) return res.status(400).json({ error: 'Falta el array "order".' });
 
-  const db = readDB();
-  const list = db[req.params.collection];
-  const byId = new Map(list.map((i) => [i.id, i]));
-  const reordered = order.map((id) => byId.get(id)).filter(Boolean);
-
-  // Si algún id se perdió en el camino, no tocamos nada (evita perder datos).
-  if (reordered.length !== list.length) {
-    return res.status(400).json({ error: "El orden enviado no coincide con los elementos existentes." });
+  try {
+    const reordered = await reorderCollection(req.params.collection, order);
+    if (!reordered) {
+      return res.status(400).json({ error: "El orden enviado no coincide con los elementos existentes." });
+    }
+    res.json(reordered);
+  } catch (err) {
+    console.error("Error al reordenar:", err);
+    res.status(500).json({ error: "Error interno al reordenar." });
   }
-
-  db[req.params.collection] = reordered;
-  writeDB(db);
-  res.json(reordered);
 });
 
 export default router;

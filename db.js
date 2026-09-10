@@ -1,105 +1,205 @@
-// Base de datos muy simple: un único archivo JSON en disco.
-// No usamos SQLite/Mongo/etc a propósito: el sitio es de bajo tráfico
-// (una cátedra), lo importante es que sea fácil de entender, respaldar
-// (es un solo archivo) y mover a otro servidor.
+// Capa de datos contra PostgreSQL.
+//
+// Reemplaza al viejo esquema de "un archivo JSON en disco": ahora los datos
+// viven en una base Postgres, lo cual es necesario en hosting con sistema
+// de archivos efímero (Render, Railway, Vercel, etc.) donde un archivo
+// local se perdería en cada reinicio/deploy.
+//
+// La forma de usar este módulo desde las rutas se mantuvo lo más parecida
+// posible a como usaban readDB()/writeDB() antes, para minimizar cambios.
 
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { randomUUID } from "crypto";
+import pg from "pg";
+import dotenv from "dotenv";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const DB_PATH = path.join(__dirname, "data", "db.json");
+dotenv.config();
 
-function seed() {
-  return {
-    // Se crea vacío: hay que ejecutar `npm run create-admin` una vez
-    // (ver server/README.md) para poder entrar al panel.
-    admin: null,
+const { Pool } = pg;
 
-    docentes: [
-      { id: randomUUID(), name: "Dr. Fabricio Falcucci", role: "Profesor Adjunto Int." },
-      { id: randomUUID(), name: "Dra. Margarita Vázquez", role: "Auxiliar Docente Regular" },
-      { id: randomUUID(), name: "Dr. Evaristo Ulivarri", role: "Auxiliar Graduado" },
-    ],
+export const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.DB_SSL === "false" ? false : { rejectUnauthorized: false },
+    })
+  : new Pool({
+      host: process.env.DB_HOST || "localhost",
+      port: parseInt(process.env.DB_PORT || "5432"),
+      user: process.env.DB_USER || "postgres",
+      password: process.env.DB_PASSWORD || "",
+      database: process.env.DB_NAME || "teoria_delderechob",
+    });
 
-    auxiliares: [
-      { id: randomUUID(), name: "Cristian Sebastián" },
-      { id: randomUUID(), name: "Facundo Sánchez" },
-      { id: randomUUID(), name: "Ignacio Sosa" },
-      { id: randomUUID(), name: "Leonel López Hyrycz" },
-      { id: randomUUID(), name: "Felipe Cano" },
-      { id: randomUUID(), name: "Joaquín Flores Arias" },
-      { id: randomUUID(), name: "Guadalupe Farías" },
-      { id: randomUUID(), name: "Lourdes Chávez" },
-    ],
+pool.on("error", (err) => {
+  console.error("Error inesperado en el cliente de PostgreSQL", err);
+});
 
-    links: [
-      { id: randomUUID(), label: "Aula Virtual — SIU Guaraní", url: "#", desc: "Sistema de gestión académica de la facultad", icon: "graduate" },
-      { id: randomUUID(), label: "Biblioteca Digital Jurídica", url: "#", desc: "Acceso a recursos bibliográficos y revistas especializadas", icon: "book" },
-      { id: randomUUID(), label: "Programa de la Materia 2026", url: "#", desc: "Contenidos mínimos, bibliografía y cronograma de cursado", icon: "doc" },
-      { id: randomUUID(), label: "Plataforma Moodle", url: "#", desc: "Materiales de estudio, foros y entregas de trabajos", icon: "monitor" },
-      { id: randomUUID(), label: "Canal de YouTube — Clases Grabadas", url: "#", desc: "Registro audiovisual de las clases teóricas", icon: "play" },
-      { id: randomUUID(), label: "Grupo de WhatsApp", url: "#", desc: "Canal oficial de comunicación de la comisión", icon: "message" },
-      { id: randomUUID(), label: "Reglamento Académico", url: "#", desc: "Normativa vigente de la facultad", icon: "clipboard" },
-      { id: randomUUID(), label: "Contacto Docente", url: "#", desc: "Mail institucional para consultas académicas", icon: "mail" },
-    ],
+// ── Configuración de colecciones ────────────────────────────────────────
+// Mapea el nombre de colección (el mismo que usan las rutas /api/admin/:collection)
+// a su tabla real y a la correspondencia entre el nombre de campo que usan
+// las rutas (igual que antes, ej. "desc") y el nombre real de columna en la
+// base (ej. "description", porque "desc" es un nombre incómodo para SQL).
+const COLLECTIONS_CONFIG = {
+  docentes: {
+    table: "docentes",
+    columns: { name: "name", role: "role" },
+  },
+  auxiliares: {
+    table: "auxiliares",
+    columns: { name: "name" },
+  },
+  links: {
+    table: "links",
+    columns: { label: "label", url: "url", desc: "description", icon: "icon" },
+  },
+  timeline: {
+    table: "timeline",
+    columns: { icon: "icon", color: "color", title: "title", badge: "badge", text: "text" },
+  },
+};
 
-    timeline: [
-      {
-        id: randomUUID(),
-        icon: "bulb",
-        color: "cyan",
-        title: "Origen en la Cátedra",
-        badge: "",
-        text: 'La iniciativa surgió como un trabajo de profundización temática enfocado en el análisis de los "Nuevos Sujetos de Derecho" en el marco de la asignatura Teoría del Derecho y la Justicia "B".',
-      },
-      {
-        id: randomUUID(),
-        icon: "leaf",
-        color: "magenta",
-        title: "Trabajo de Campo e Interdisciplina (El Manantial)",
-        badge: "",
-        text: "El equipo realizó un abordaje de campo territorial e interdisciplinario en la sede de El Manantial, articulando conocimientos prácticos junto a docentes y estudiantes de la Facultad de Agronomía, Zootecnia y Veterinaria (FAZYV-UNT).",
-      },
-      {
-        id: randomUUID(),
-        icon: "building",
-        color: "cyan",
-        title: "Gestión e Intercambio Institucional",
-        badge: "",
-        text: "Con las conclusiones y diagnósticos recabados en el territorio, el equipo mantuvo reuniones institucionales con las autoridades académicas para fundamentar la necesidad de incorporar este nuevo paradigma jurídico no antropocéntrico a la oferta académica de grado.",
-      },
-      {
-        id: randomUUID(),
-        icon: "clipboard",
-        color: "magenta",
-        title: "Tratamiento y Aprobación en el HCD",
-        badge: "RES-DER-CD-11448/2024",
-        text: "Elevado bajo el Expediente EXP-DER-ME-2945/2024, el proyecto obtuvo dictamen favorable de la Comisión de Enseñanza el 3 de julio de 2024. El Honorable Consejo Directivo aprobó la creación de la asignatura en Sesión Ordinaria el 24 de julio de 2024 mediante la Resolución RES-DER-CD-11448/2024.",
-      },
-      {
-        id: randomUUID(),
-        icon: "graduate",
-        color: "cyan",
-        title: "Puesta en Vigencia",
-        badge: "Desde 2025",
-        text: "La materia comenzó a dictarse por extensión docente a partir del primer semestre del Ciclo Lectivo 2025.",
-      },
-    ],
-  };
+export const COLLECTIONS = Object.keys(COLLECTIONS_CONFIG);
+
+function selectColumnsSQL(collection) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+  return Object.entries(cfg.columns)
+    .map(([jsField, sqlColumn]) => `${sqlColumn} AS "${jsField}"`)
+    .join(", ");
 }
 
-export function readDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-    fs.writeFileSync(DB_PATH, JSON.stringify(seed(), null, 2));
+// ── Contenido público / administrado ────────────────────────────────────
+
+export async function getPublicContent() {
+  const [docentes, auxiliares, links, timeline] = await Promise.all(
+    COLLECTIONS.map((c) => getCollection(c))
+  );
+  return { docentes, auxiliares, links, timeline };
+}
+
+export async function getCollection(collection) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+  const { rows } = await pool.query(
+    `SELECT id, ${selectColumnsSQL(collection)} FROM ${cfg.table} ORDER BY position ASC`
+  );
+  return rows;
+}
+
+export async function getItemById(collection, id) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+  const { rows } = await pool.query(
+    `SELECT id, ${selectColumnsSQL(collection)} FROM ${cfg.table} WHERE id = $1`,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+export async function createItem(collection, data) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+  const jsFields = Object.keys(data);
+  const sqlColumns = jsFields.map((f) => cfg.columns[f]);
+  const values = jsFields.map((f) => data[f]);
+
+  const { rows: posRows } = await pool.query(
+    `SELECT COALESCE(MAX(position), -1) + 1 AS next FROM ${cfg.table}`
+  );
+  const nextPosition = posRows[0].next;
+
+  const insertColumns = [...sqlColumns, "position"];
+  const placeholders = insertColumns.map((_, i) => `$${i + 1}`);
+
+  const { rows } = await pool.query(
+    `INSERT INTO ${cfg.table} (${insertColumns.join(", ")})
+     VALUES (${placeholders.join(", ")})
+     RETURNING id, ${selectColumnsSQL(collection)}`,
+    [...values, nextPosition]
+  );
+  return rows[0];
+}
+
+export async function updateItem(collection, id, data) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+  const jsFields = Object.keys(data);
+  if (jsFields.length === 0) {
+    return getItemById(collection, id);
   }
-  return JSON.parse(fs.readFileSync(DB_PATH, "utf-8"));
+
+  const setClauses = jsFields.map((f, i) => `${cfg.columns[f]} = $${i + 1}`);
+  const values = jsFields.map((f) => data[f]);
+
+  const { rows } = await pool.query(
+    `UPDATE ${cfg.table} SET ${setClauses.join(", ")}
+     WHERE id = $${values.length + 1}
+     RETURNING id, ${selectColumnsSQL(collection)}`,
+    [...values, id]
+  );
+  return rows[0] || null;
 }
 
-export function writeDB(data) {
-  fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+export async function deleteItem(collection, id) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+  const { rows } = await pool.query(
+    `DELETE FROM ${cfg.table} WHERE id = $1 RETURNING id, ${selectColumnsSQL(collection)}`,
+    [id]
+  );
+  return rows[0] || null;
 }
 
-export const COLLECTIONS = ["docentes", "auxiliares", "links", "timeline"];
+export async function reorderCollection(collection, order) {
+  const cfg = COLLECTIONS_CONFIG[collection];
+
+  const { rows: existing } = await pool.query(`SELECT id FROM ${cfg.table}`);
+  const existingIds = new Set(existing.map((r) => r.id));
+
+  const isValidOrder =
+    order.length === existingIds.size && order.every((id) => existingIds.has(id));
+
+  if (!isValidOrder) {
+    return null; // el llamador interpreta null como "orden inválido"
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (let i = 0; i < order.length; i++) {
+      await client.query(`UPDATE ${cfg.table} SET position = $1 WHERE id = $2`, [i, order[i]]);
+    }
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+
+  return getCollection(collection);
+}
+
+// ── Administrador ────────────────────────────────────────────────────────
+
+export async function getAdmin() {
+  const { rows } = await pool.query(
+    `SELECT username, password_hash AS "passwordHash" FROM admin LIMIT 1`
+  );
+  return rows[0] || null;
+}
+
+// Crea (o reemplaza por completo) el único admin permitido.
+export async function setAdmin(username, passwordHash) {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM admin");
+    await client.query(
+      "INSERT INTO admin (username, password_hash) VALUES ($1, $2)",
+      [username, passwordHash]
+    );
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateAdminPassword(passwordHash) {
+  await pool.query("UPDATE admin SET password_hash = $1", [passwordHash]);
+}
