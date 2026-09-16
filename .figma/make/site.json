@@ -1,0 +1,10 @@
+{
+  "description": "Showcases a modern, visually appealing website for an academic course featuring sections like home, team, projects, and useful links with cohesive branding.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

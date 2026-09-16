@@ -1,0 +1,252 @@
+/* Estilos del panel /admin — reutiliza las variables de color de index.css
+   (--bg, --bg-card, --cyan, --magenta, etc.), que ya están definidas
+   globalmente porque main.tsx importa index.css antes de montar cualquiera
+   de las dos apps (sitio o admin). */
+
+.admin-shell {
+  min-height: 100%;
+  background-color: var(--bg);
+  color: var(--text-primary);
+  font-family: "Outfit", sans-serif;
+  padding: 2rem 1.5rem 4rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.admin-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.admin-login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg);
+  padding: 1.5rem;
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-title {
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.03em;
+  font-size: 1.9rem;
+  color: #fff;
+  margin: 0;
+}
+
+.admin-title-sm {
+  font-size: 1.5rem;
+}
+
+.admin-subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.admin-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
+.admin-input {
+  width: 100%;
+  background-color: var(--bg);
+  border: 1px solid rgba(0, 212, 212, 0.25);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: var(--cyan);
+}
+
+.admin-card {
+  background-color: var(--bg-card);
+  border: 1px solid rgba(255, 45, 155, 0.18);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.admin-btn-primary {
+  background: linear-gradient(135deg, var(--cyan), var(--magenta));
+  color: #0a0a0f;
+  font-weight: 700;
+  border: none;
+  border-radius: 6px;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
+.admin-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(0, 212, 212, 0.35);
+  color: var(--cyan);
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.admin-btn-danger {
+  background: transparent;
+  border: 1px solid rgba(255, 45, 155, 0.4);
+  color: var(--magenta);
+  border-radius: 6px;
+  padding: 0.55rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.admin-error {
+  color: var(--magenta);
+  font-size: 0.85rem;
+  background: rgba(255, 45, 155, 0.08);
+  border: 1px solid rgba(255, 45, 155, 0.25);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.admin-success {
+  color: var(--cyan);
+  font-size: 0.85rem;
+  background: rgba(0, 212, 212, 0.08);
+  border: 1px solid rgba(0, 212, 212, 0.25);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.admin-back-link {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+  margin-top: 0.75rem;
+  display: inline-block;
+}
+
+.admin-back-link:hover {
+  color: var(--cyan);
+}
+
+.admin-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 45, 155, 0.15);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-header-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.admin-tab {
+  background: transparent;
+  border: 1px solid rgba(0, 212, 212, 0.2);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.admin-tab.active {
+  background: linear-gradient(135deg, rgba(0, 212, 212, 0.2), rgba(255, 45, 155, 0.2));
+  color: #fff;
+  border-color: transparent;
+}
+
+.admin-section {
+  margin-bottom: 1.5rem;
+}
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.admin-row-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.admin-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  flex: 1;
+  min-width: 200px;
+}
+
+.admin-row-field-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.admin-row-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-add-btn {
+  width: 100%;
+}
