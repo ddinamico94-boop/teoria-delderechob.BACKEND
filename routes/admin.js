@@ -21,6 +21,7 @@ const FIELDS = {
   auxiliares: ["name"],
   links: ["label", "url", "desc", "icon"],
   timeline: ["title", "text", "badge", "color", "icon"],
+  parciales: ["title", "date"],
 };
 
 // Campos que, aunque se guardan, no son obligatorios al crear un elemento.

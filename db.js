@@ -54,6 +54,10 @@ const COLLECTIONS_CONFIG = {
     table: "timeline",
     columns: { icon: "icon", color: "color", title: "title", badge: "badge", text: "text" },
   },
+  parciales: {
+    table: "parciales",
+    columns: { title: "title", date: "date" },
+  },
 };
 
 export const COLLECTIONS = Object.keys(COLLECTIONS_CONFIG);
@@ -68,10 +72,10 @@ function selectColumnsSQL(collection) {
 // ── Contenido público / administrado ────────────────────────────────────
 
 export async function getPublicContent() {
-  const [docentes, auxiliares, links, timeline] = await Promise.all(
+  const [docentes, auxiliares, links, timeline, parciales] = await Promise.all(
     COLLECTIONS.map((c) => getCollection(c))
   );
-  return { docentes, auxiliares, links, timeline };
+  return { docentes, auxiliares, links, timeline, parciales };
 }
 
 export async function getCollection(collection) {
