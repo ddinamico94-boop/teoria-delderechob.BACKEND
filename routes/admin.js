@@ -19,13 +19,13 @@ const router = Router();
 const FIELDS = {
   docentes: ["name", "role"],
   auxiliares: ["name"],
-  links: ["label", "url", "desc", "icon"],
+  links: ["label", "url", "desc", "icon", "iconImage"],
   timeline: ["title", "text", "badge", "color", "icon"],
   parciales: ["title", "date"],
 };
 
 // Campos que, aunque se guardan, no son obligatorios al crear un elemento.
-const OPTIONAL_FIELDS = new Set(["badge"]);
+const OPTIONAL_FIELDS = new Set(["badge", "iconImage"]);
 
 function pick(obj, fields) {
   const out = {};

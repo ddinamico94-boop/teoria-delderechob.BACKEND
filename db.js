@@ -48,7 +48,7 @@ const COLLECTIONS_CONFIG = {
   },
   links: {
     table: "links",
-    columns: { label: "label", url: "url", desc: "description", icon: "icon" },
+    columns: { label: "label", url: "url", desc: "description", icon: "icon", iconImage: "icon_image" },
   },
   timeline: {
     table: "timeline",
