@@ -25,12 +25,15 @@ const FIELDS = {
 };
 
 // Campos que, aunque se guardan, no son obligatorios al crear un elemento.
-const OPTIONAL_FIELDS = new Set(["badge", "iconImage"]);
+const OPTIONAL_FIELDS = new Set(["badge", "iconImage", "icon"]);
 
 function pick(obj, fields) {
   const out = {};
   for (const f of fields) {
-    if (obj[f] !== undefined) out[f] = String(obj[f]).slice(0, 4000);
+    if (obj[f] !== undefined) {
+      const maxLen = f === "iconImage" ? 3_000_000 : 4000;
+      out[f] = String(obj[f]).slice(0, maxLen);
+    }
   }
   return out;
 }
